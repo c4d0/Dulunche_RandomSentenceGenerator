@@ -1,11 +1,18 @@
 # Dulunche_RandomSentenceGenerator
 
-油猴脚本，配合独轮车用
+油猴脚本，配合[独轮车](https://greasyfork.org/zh-CN/scripts/412464-youtube%E7%8B%AC%E8%BD%AE%E8%BD%A6-auto-youtube-chat-sender)用
 
 随机生成弹药，可以一定程度避免对面sj弹药库
 
 # 安装
-[当前版本 0.6](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/randomsentencegenerator.user.js)
+
+从openuserjs.org安装
+
+- [RandomSentenceGenerator](https://openuserjs.org/scripts/sqrl/RandomSentenceGenerator)
+
+或直接从github下载
+
+- [当前版本 0.6](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/randomsentencegenerator.user.js)
 
 # 原理
 
@@ -23,7 +30,7 @@
 - 一次生成条数、每条长度：不解释
 - 语气增强：随机插入问号和感叹号
 - 逻辑增强：随机插入逻辑连接词
-- 自动装填：生成后自动填入[独轮车](https://greasyfork.org/zh-CN/scripts/412464-youtube%E7%8B%AC%E8%BD%AE%E8%BD%A6-auto-youtube-chat-sender)
+- 自动装填：生成后自动填入独轮车
 
 ![scr1](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/2020-10-25_18-49-14_chrome.png)
 
@@ -48,3 +55,10 @@ laji_cxhrAsync(url, method, dataString) //跨域请求
 var id = setInterval(() => laji_GenerateAndTranslate(), 60 * 1000);
 //如果要停止定时器，输入 clearInterval(id);
 ```
+
+# Changelog
+
+## v0.6
+- 优化ui
+- 增加了语气增强和逻辑增强
+
