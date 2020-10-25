@@ -7,7 +7,14 @@
 # 安装
 [当前版本 0.6](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/randomsentencegenerator.user.js)
 
-# 使用
+# 原理
+
+从一个[中文词库](https://gist.github.com/c4d0/47b712b20ac1f85724048d500909d1cc)里面随机选出词语组合成句子，再白嫖百度翻译的api反复翻译，就能把语法理顺。
+
+通过随机插入给定词语，可以让生成的结果和给定的主题相关，乍一看很有道理但是实际上狗屁不通（手动ac娘表情）
+
+# 使用方法
+
 打开youtube，等加载完词库即可看到界面，shift+r可以切换界面显示
 
 - 主题：会随机插入到生成的文本中。多个词用空格隔开
