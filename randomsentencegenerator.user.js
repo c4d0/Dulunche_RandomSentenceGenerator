@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RandomSentenceGenerator
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.7.1
 // @description  generates random sentence, helps you come up with good ideas.
 // @author       sqrl
 // @license      MIT
@@ -24,6 +24,7 @@
     let wordsLogic = ['虽然', '但是', '因为', '所以', '如果'];
     let dlcIsRunning = false;
     let dulunche = null;
+    let translators = {}; //字典，key为标识符，value为translator对象
     
     let ui = {
         saveInput : function (){
@@ -89,7 +90,7 @@
         {
             tag : 'span',
             properties : {
-                innerHTML : '<b>垃圾话生成器 0.7</b>（shift+R隐藏/显示界面）'
+                innerHTML : '<b>垃圾话生成器 0.7.1</b>（alt+shift+R隐藏/显示界面）'
             }
         },
         { tag : 'br' },
@@ -399,12 +400,25 @@
         });
     }
     
+    //翻译器：百度翻译
+    //必要的异步函数：initialize()和translate(content, from, to)
+    //每当有东西需要翻译时就依次调用initialize和translate
+    //为了统一格式，from和to就用百度翻译的语言代号，如果实现别的api可能需要做一个转换
+    //可以照此实现别的翻译api
     let tokenReg = new RegExp("token:\\s'(\\S{32})'");
     let gtkReg = new RegExp("window.gtk\\s=\\s'(\\d{6}.\\d{9})';");
     let baiduFanyi = {
+        initialized : false,
         currentToken : null,
         currentGtk : null,
-        initialize : async function(){
+        initialize : async function(){ //异步，当需要此翻译的时候被调用
+            if (this.initialized) return;//只初始化一次
+            console.log('initializing baiduFanyi');
+            await this.fetchToken();
+            setInterval(() => this.fetchToken(), 600 * 1000);//10分钟重新获取token
+            this.initialized = true;
+        },
+        fetchToken : async function(){
             let page = await cxhrAsync('https://fanyi.baidu.com/', 'get', '');
             this.currentToken = tokenReg.exec(page)[1];
             this.currentGtk = gtkReg.exec(page)[1];
@@ -448,7 +462,7 @@
             let sign = this.getSign(content);
             let textres = await cxhrAsync(`https://fanyi.baidu.com/v2transapi?from=${from}&to=${to}`, 
             'post', `from=${from}&to=${to}&query=${encodeURIComponent(content)}&transtype=realtime&simple_means_flag=3&sign=${sign}&token=${this.currentToken}&domain=common`);
-            //console.log(textres);
+            if (textres == null) return null;
             let obj = eval(`(${textres})`);
             //console.log(obj);
             let resstr = '';
@@ -462,7 +476,8 @@
         },
     }
     
-    let asyncGenerate = async (numLines, numWords) => {
+    //生成随机中文
+    let asyncGenerate = async (numLines, numWords) => {//其实没有async...
         let insertWords = ui.elem.insertWordBox.value.split(' ');
         ui.elem.resultText.value = '';
         for (let i = 0; i < numLines; i++){
@@ -490,9 +505,10 @@
             trashArr.forEach(trash => ui.elem.resultText.value += trash);
             ui.elem.resultText.value += '\n';
         }
-        console.log(ui.elem.resultText.value);
+        //console.log(ui.elem.resultText.value);
     }
     
+    //翻译
     let asyncTranslate = async () => {
         let translations = ui.elem.translationOrderBox.value.split(' ');
         while (translations.length > 0) {
@@ -501,6 +517,10 @@
             if (thisLang == nextLang) continue;
             //console.log(`translating: ${thisLang} to ${nextLang}`);
             let translated = await baiduFanyi.translate(ui.elem.resultText.value, thisLang, nextLang);
+            if (translated == null){
+                console.log(`error translating: ${thisLang} to ${nextLang}`);
+                break;
+            }
             //console.log(translated);
             ui.elem.resultText.value = translated;
         }
@@ -529,6 +549,7 @@
                 console.log(e);
             }
             if (dlcIsRunning && ui.elem.dynamicReload.checked){
+                //动态装填，覆盖独轮车的danmakuGener
                 console.log('randomsentencegenerator: overriding danmakuGener');
                 let splitText = text.split('\n');
                 let splitFiltered = [];
@@ -567,6 +588,7 @@
         }
     }
     
+    //下载词库
     async function getWordList(url){
         let raw = await cxhrAsync(url, 'get', '');
         return raw.split('\n');
@@ -584,6 +606,7 @@
         return res;
     }
     
+    //注入代码
     let insertScript = function(script){
         //console.log(script);
         let scriptElem = document.createElement('script');
@@ -591,6 +614,7 @@
         document.body.appendChild(scriptElem);
     }
     
+    //注入函数
     let insertFunction = function(globalName, params, func){
         let eventName = globalName + '_userevent' + randomInt(10000000, 99999999);
         document.addEventListener(eventName, async e => {
@@ -611,6 +635,7 @@
         `);
     }
     
+    //异步，从外面取值
     let globalEval = function(code){
         return new Promise(resolve => {
             insertFunction('laji_passObject', 'obj', o => {
@@ -645,10 +670,8 @@
     //wordsEnglish = await getWordList('https://github.com/first20hours/google-10000-english/raw/master/google-10000-english-no-swears.txt');
     wordsChinese = await getWordList('https://gist.github.com/c4d0/47b712b20ac1f85724048d500909d1cc/raw/904236c3c1fecf348b9757b7d705ac9ba40bf655/chinese_10000words');
     
-    //badduFanyi
-    console.log('get fanyi token');
-    await baiduFanyi.initialize();
-    setInterval(() => baiduFanyi.initialize(), 600 * 1000);//10分钟重新获取token
+    
+    baiduFanyi.initialize();
     
     
     //setup ui
@@ -701,14 +724,14 @@
     
     //hotkey
     document.addEventListener('keydown', e =>{
-        if (e.key == 'R'){
+        if (e.keyCode == 82 && e.altKey && e.shiftKey){
             smallWindow.style['display'] = smallWindow.style['display'] == 'none' ? '' : 'none';
         }
     });
     
     smallWindow.style['display'] = '';
     
-    
+    //获取独轮车接口
     dulunche = await globalEval('window.dulunche');
     if (dulunche != null){
         dulunche.eventBus.on('dlc.run', ()=>{
@@ -721,25 +744,9 @@
             dlcIsRunning = false;
         });
     }
+    else{
+        console.log('randomsentencegenerator: 未找到独轮车');
+    }
     
-//    insertFunction('laji_passDlcObject', 'dlc', d => {
-//        console.log('randomsentencegenerator: dulunche detected');
-//        dulunche = d;
-//        dulunche.eventBus.on('dlc.run', ()=>{
-//            dlcIsRunning = true;
-//            if (ui.elem.autoDLC.checked && ui.elem.dynamicReload.checked) {
-//                sendToDlc(ui.elem.resultText.value);
-//            }
-//        });
-//        dulunche.eventBus.on('dlc.stop', ()=>{
-//            dlcIsRunning = false;
-//        });
-//    });
-//    insertScript(`
-//        if (window.dulunche != null){
-//            laji_passDlcObject(window.dulunche);
-//            window.laji_passDlcObject = undefined;
-//        }
-//    `);
     
 })();
