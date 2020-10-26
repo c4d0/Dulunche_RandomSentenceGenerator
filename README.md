@@ -14,7 +14,8 @@
 
 或直接从github下载
 
-- [当前版本 0.7](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/randomsentencegenerator.user.js)
+- [当前版本 0.7.1](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/randomsentencegenerator.user.js)
+- [0.7](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/legacy/randomsentencegenerator_v0.7.user.js)
 - [0.6](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/legacy/randomsentencegenerator_v0.6.user.js)
 
 # 原理
@@ -62,6 +63,9 @@ var id = setInterval(() => laji_GenerateAndTranslate(), 60 * 1000);
 ```
 
 # Changelog
+
+## v0.7.1
+- 更改快捷键为alt+shift+R，防止误触
 
 ## v0.7
 - 优化ui
