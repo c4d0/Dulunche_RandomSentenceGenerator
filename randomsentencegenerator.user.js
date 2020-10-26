@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         RandomSentenceGenerator
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  generates random sentence, helps you come up with good ideas.
 // @author       sqrl
 // @license      MIT
@@ -11,19 +11,24 @@
 // @grant        GM_getValue
 // ==/UserScript==
 
+
+//要求独轮车版本 >= 2.20
+
 (async function() {
-    'use strict';
+    
     if (window.top !== window.self) throw new Error('非顶层框架');
     
     let isBusy = false;
     let wordsChinese = [];
     let wordsTone = ['！', '？'];
     let wordsLogic = ['虽然', '但是', '因为', '所以', '如果'];
+    let dlcIsRunning = false;
+    let dulunche = null;
     
     let ui = {
         saveInput : function (){
-            for (var i = 0; i < this.config.length; i++){
-                var cfg = this.config[i];
+            for (let i = 0; i < this.config.length; i++){
+                let cfg = this.config[i];
                 if (cfg.name != null && cfg.tag == 'input'){
                     switch (cfg.properties.type){
                         case 'checkbox':
@@ -37,10 +42,10 @@
             }
         },
         loadInput : function (){
-            for (var i = 0; i < this.config.length; i++){
-                var cfg = this.config[i];
+            for (let i = 0; i < this.config.length; i++){
+                let cfg = this.config[i];
                 if (cfg.name != null && cfg.tag == 'input'){
-                    var loaded = null;
+                    let loaded = null;
                     switch (cfg.properties.type){
                         case 'checkbox':
                             loaded = GM_getValue(cfg.storage);
@@ -51,20 +56,21 @@
                             this.elem[cfg.name].value = loaded == null ? cfg.def : loaded;
                             break;
                     }
+                    this.elem[cfg.name].dispatchEvent(new InputEvent('change'));
                 }
             }
         },
         initialize : function(root, config){
             this.config = config;
-            for (var i = 0; i < config.length; i++){
-                var cfg = config[i];
-                var ele = document.createElement(cfg.tag);
+            for (let i = 0; i < config.length; i++){
+                let cfg = config[i];
+                let ele = document.createElement(cfg.tag);
                 if (cfg.name != null) this.elem[cfg.name] = ele;
                 if (cfg.properties != null){
-                    for (var k in cfg.properties){
+                    for (let k in cfg.properties){
                         switch(k){
                             case 'style':
-                                for (var styleKey in cfg.properties.style){
+                                for (let styleKey in cfg.properties.style){
                                     ele.style[styleKey] = cfg.properties.style[styleKey];
                                 }
                                 break;
@@ -83,7 +89,7 @@
         {
             tag : 'span',
             properties : {
-                innerHTML : '<b>垃圾话生成器</b>（shift+R隐藏/显示界面）'
+                innerHTML : '<b>垃圾话生成器 0.7</b>（shift+R隐藏/显示界面）'
             }
         },
         { tag : 'br' },
@@ -214,7 +220,12 @@
                 title : '随机插入问号和感叹号'
             }
         },
-        { tag : 'br' },
+        { 
+            tag : 'span',
+            properties : {
+                innerHTML : '&nbsp;&nbsp;'
+            } 
+        },
         {
             tag : 'span',
             properties : {
@@ -233,12 +244,36 @@
                 title : '随机插入逻辑连接词'
             }
         },
+        { 
+            tag : 'span',
+            properties : {
+                innerHTML : '&nbsp;&nbsp;'
+            } 
+        },
+        {
+            tag : 'span',
+            properties : {
+                innerHTML : '强制小写',
+                title : '强制转换成小写字母'
+            }
+        },
+        {
+            tag : 'input',
+            name : 'forceLower',
+            storage : 'forceLower',
+            def : false,
+            properties : {
+                type : 'checkbox',
+                id : 'laji_forceLower',
+                title : '强制转换成小写字母'
+            }
+        },
         { tag : 'br' },
         {
             tag : 'span',
             properties : {
                 innerHTML : '自动装填',
-                title : '生成后自动填入独轮车'
+                title : '生成后自动填入独轮车\n【如果你没有独轮车或着想用其他工具，则可以把此选项关掉，手动复制生成的文本到你的工具中】'
             }
         },
         {
@@ -248,8 +283,35 @@
             def : false,
             properties : {
                 type : 'checkbox',
-                id : 'laji_banWordBox',
-                title : '生成后自动填入独轮车'
+                id : 'laji_autoDLC',
+                title : '生成后自动填入独轮车\n【如果你没有独轮车或着想用其他工具，则可以把此选项关掉，手动复制生成的文本到你的工具中】',
+                onchange : function (e){
+                    ui.elem.dynamicReload.disabled = !ui.elem.autoDLC.checked;
+                }
+            }
+        },
+        { 
+            tag : 'span',
+            properties : {
+                innerHTML : '&nbsp;&nbsp;'
+            } 
+        },
+        {
+            tag : 'span',
+            properties : {
+                innerHTML : '动态装填',
+                title : '【适合长时间全自动挂机，如果用手动穿甲的话则没必要开】\n开启此选项后会强制覆盖dulunche的danmakuGener，在弹药消耗到一半时自动生成新的弹药'
+            }
+        },
+        {
+            tag : 'input',
+            name : 'dynamicReload',
+            storage : 'dynamicReload',
+            def : false,
+            properties : {
+                type : 'checkbox',
+                id : 'laji_dynamicReload',
+                title : '【适合长时间全自动挂机，如果用手动穿甲的话则没必要开】\n开启此选项后会强制覆盖dulunche的danmakuGener，在弹药消耗到一半时自动生成新的弹药'
             }
         },
         { tag : 'br' },
@@ -264,21 +326,17 @@
                     if (isBusy) return;
                     isBusy = true;
                     ui.saveInput();
-                    var original = ui.elem.generateButton.innerHTML;
+                    let original = ui.elem.generateButton.innerHTML;
                     ui.elem.generateButton.innerHTML = '...';
-                    var numLines = Number(ui.elem.lineNumBox.value);
-                    var numWords = Number(ui.elem.wordNumBox.value);
+                    let numLines = Number(ui.elem.lineNumBox.value);
+                    let numWords = Number(ui.elem.wordNumBox.value);
                     if (isNaN(numLines)) numLines = 20; 
                     if (isNaN(numWords)) numLines = 10; 
                     await asyncGenerate(numLines, numWords);
                     await asyncTranslate();
                     //fill DLC
                     if (ui.elem.autoDLC.checked) {
-                        if (document.getElementsByClassName('dlc-cmd')[0] != null){
-                            var dlcTextbox = document.getElementsByClassName('dlc-cmd')[0].lastElementChild.firstElementChild.firstElementChild.firstElementChild;
-                            dlcTextbox.value = ui.elem.resultText.value;
-                            dlcTextbox.dispatchEvent(new InputEvent('change'));
-                        }
+                        sendToDlc(ui.elem.resultText.value);
                     }
                     ui.elem.generateButton.innerHTML = original;
                     isBusy = false;
@@ -388,44 +446,44 @@
         },
         translate : async function (content, from, to){
             let sign = this.getSign(content);
-            var textres = await cxhrAsync(`https://fanyi.baidu.com/v2transapi?from=${from}&to=${to}`, 
+            let textres = await cxhrAsync(`https://fanyi.baidu.com/v2transapi?from=${from}&to=${to}`, 
             'post', `from=${from}&to=${to}&query=${encodeURIComponent(content)}&transtype=realtime&simple_means_flag=3&sign=${sign}&token=${this.currentToken}&domain=common`);
             //console.log(textres);
-            var obj = eval(`(${textres})`);
+            let obj = eval(`(${textres})`);
             //console.log(obj);
-            var resstr = '';
+            let resstr = '';
             obj.trans_result.data.forEach(line => resstr += line.dst + '\n');
             return resstr;
         },
         getLang : async function (content){
-            var textres = await cxhrAsync('https://fanyi.baidu.com/langdetect', 'post', 'query=' + encodeURIComponent(content));
-            var obj = eval(`(${textres})`);
+            let textres = await cxhrAsync('https://fanyi.baidu.com/langdetect', 'post', 'query=' + encodeURIComponent(content));
+            let obj = eval(`(${textres})`);
             return obj.lan;
         },
     }
     
     let asyncGenerate = async (numLines, numWords) => {
-        var insertWords = ui.elem.insertWordBox.value.split(' ');
+        let insertWords = ui.elem.insertWordBox.value.split(' ');
         ui.elem.resultText.value = '';
-        for (var i = 0; i < numLines; i++){
-            var trashArr = randomFromWordList(wordsChinese, numWords);
-            var j;
+        for (let i = 0; i < numLines; i++){
+            let trashArr = randomFromWordList(wordsChinese, numWords);
+            let j, insertPosition;
             for (j = 0; j < insertWords.length; j++){
                 if (Math.random() > 1 - 0.02**(1.0 / insertWords.length)) continue;
-                var insertPosition = randomInt(0, trashArr.length + 1);
+                insertPosition = randomInt(0, trashArr.length + 1);
                 trashArr.splice(insertPosition, 0, insertWords[j]);
             }
             if (ui.elem.enhanceTone.checked){
-                var toneArr = randomFromWordList(wordsTone, randomInt(1, 3));
+                let toneArr = randomFromWordList(wordsTone, randomInt(1, 3));
                 for (j = 0; j < toneArr.length; j++){
-                    var insertPosition = randomInt(trashArr.length / 2, trashArr.length + 1);
+                    insertPosition = [Math.floor(trashArr.length / 2), Math.floor(trashArr.length * 2 / 3), trashArr.length][randomInt(0, 3)];
                     trashArr.splice(insertPosition, 0, toneArr[j]);
                 }
             }
             if (ui.elem.enhanceLogic.checked){
-                var logicArr = randomFromWordList(wordsLogic, randomInt(1, 3));
+                let logicArr = randomFromWordList(wordsLogic, randomInt(1, 3));
                 for (j = 0; j < logicArr.length; j++){
-                    var insertPosition = randomInt(0, trashArr.length / 2);
+                    insertPosition = randomInt(0, trashArr.length / 2);
                     trashArr.splice(insertPosition, 0, logicArr[j]);
                 }
             }
@@ -436,27 +494,77 @@
     }
     
     let asyncTranslate = async () => {
-        var translations = ui.elem.translationOrderBox.value.split(' ');
+        let translations = ui.elem.translationOrderBox.value.split(' ');
         while (translations.length > 0) {
-            var thisLang = await baiduFanyi.getLang(ui.elem.resultText.value);
-            var nextLang = translations.shift();
+            let thisLang = await baiduFanyi.getLang(ui.elem.resultText.value);
+            let nextLang = translations.shift();
             if (thisLang == nextLang) continue;
-            console.log(`translating: ${thisLang} to ${nextLang}`);
-            var translated = await baiduFanyi.translate(ui.elem.resultText.value, thisLang, nextLang);
-            console.log(translated);
+            //console.log(`translating: ${thisLang} to ${nextLang}`);
+            let translated = await baiduFanyi.translate(ui.elem.resultText.value, thisLang, nextLang);
+            //console.log(translated);
             ui.elem.resultText.value = translated;
         }
-        var banWords = ui.elem.banWordBox.value.split(' ');
-        for (var i = 0; i < banWords.length; i++){
+        let banWords = ui.elem.banWordBox.value.split(' ');
+        for (let i = 0; i < banWords.length; i++){
             //去除不允许的词 暂且这么处理
             ui.elem.resultText.value = ui.elem.resultText.value.replaceAll(new RegExp(banWords[i], 'gi'), '');
         }
+        if (ui.elem.forceLower.checked){
+            ui.elem.resultText.value = ui.elem.resultText.value.toLowerCase();
+        }
+        
     }
     
     
     //jump to deepl
     function openDeepl(content){
         window.open('https://www.deepl.com/en/translator#zh/en/' + encodeURIComponent(content));
+    }
+    
+    function sendToDlc(text){
+        if (dulunche != null){
+            try{
+                dulunche.config.text = text;
+            }catch(e){
+                console.log(e);
+            }
+            if (dlcIsRunning && ui.elem.dynamicReload.checked){
+                console.log('randomsentencegenerator: overriding danmakuGener');
+                let splitText = text.split('\n');
+                let splitFiltered = [];
+                let currentIndex = 0;
+                let sentCount = 0;
+                splitText.forEach(i => {
+                    if (i.length > 0){
+                        splitFiltered.push(i);
+                    }
+                });
+                //覆盖danmakuGener
+                dulunche.refs.danmakuGener = (function*(){
+                    while(true){
+                        if (splitFiltered.length == 0) {
+                            ui.elem.generateButton.click();
+                            yield '';
+                        }
+                        else{
+                            if (dulunche.config.randomDanmaku){
+                                sentCount++;
+                                yield splitFiltered[randomInt(0, splitFiltered.length)];
+                            }
+                            else{
+                                currentIndex++;
+                                sentCount++;
+                                if (currentIndex >= splitFiltered.length) currentIndex = 0;
+                                yield splitFiltered[currentIndex]; 
+                            }
+                            if (sentCount > splitFiltered.length / 2 && sentCount > 1){
+                                ui.elem.generateButton.click();
+                            }
+                        }
+                    }
+                })();
+            }
+        }
     }
     
     async function getWordList(url){
@@ -469,8 +577,8 @@
     }
     
     function randomFromWordList(wordList, numWords){
-        var res = [];
-        for (var i = 0; i < numWords; i++){
+        let res = [];
+        for (let i = 0; i < numWords; i++){
             res.push(wordList[Math.floor(Math.random()**2 * wordList.length)]);
         }
         return res;
@@ -478,22 +586,22 @@
     
     let insertScript = function(script){
         //console.log(script);
-        var scriptElem = document.createElement('script');
+        let scriptElem = document.createElement('script');
         scriptElem.innerHTML = script;
         document.body.appendChild(scriptElem);
     }
     
     let insertFunction = function(globalName, params, func){
-        var eventName = globalName + '_userevent';
+        let eventName = globalName + '_userevent' + randomInt(10000000, 99999999);
         document.addEventListener(eventName, async e => {
             //console.log(e);
-            var promise = func.apply(window, e.params);
+            let promise = func.apply(window, e.params);
             e.resolve(await promise);
         });
         insertScript(`
-            var ${globalName} = function(${params}){
+            window.${globalName} = function(${params}){
                 return new Promise(resolve =>{
-                    var event = document.createEvent('HTMLEvents');
+                    let event = document.createEvent('HTMLEvents');
                     event.initEvent('${eventName}', true, true);
                     event.params = Array.from(arguments);
                     event.resolve = resolve;
@@ -501,6 +609,28 @@
                 });
             }
         `);
+    }
+    
+    let globalEval = function(code){
+        return new Promise(resolve => {
+            insertFunction('laji_passObject', 'obj', o => {
+                resolve(o);
+            });
+            insertScript(`
+                (() => {
+                    try{
+                        laji_passObject(eval("${code}"));
+                    }
+                    catch(e){
+                        console.log(e);
+                        laji_passObject(null);
+                    }
+                    finally{
+                        window.laji_passObject = undefined;
+                    }
+                })()
+            `);
+        });
     }
     
     insertFunction('laji_baiduFanyiTranslateAsync', 'text, from, to', async(content, from, to) => await baiduFanyi.translate(content, from, to));
@@ -519,13 +649,9 @@
     console.log('get fanyi token');
     await baiduFanyi.initialize();
     setInterval(() => baiduFanyi.initialize(), 600 * 1000);//10分钟重新获取token
-    //test fanyi functionality
-    var testres2 = await baiduFanyi.translate('啊这', 'zh', 'en');
-    console.log('翻译测试 啊这->' + testres2);
     
     
     //setup ui
-    console.log('setup ui');
     let smallWindow = document.createElement('div');
     smallWindow.id = 'laji_root';
     smallWindow.style['position'] = 'fixed';
@@ -537,21 +663,22 @@
     smallWindow.style['border-width'] = '2px';
     smallWindow.style['border-style'] = 'solid';
     smallWindow.style['border-color'] = '#888';
+    smallWindow.style['border-radius'] = '5px';
+    smallWindow.style['padding'] = '4px';
     smallWindow.style['z-index'] = '100000';
     smallWindow.style['display'] = 'none';
     smallWindow.style['user-select'] = 'none';
     ui.initialize(smallWindow, uiConfig);
     ui.loadInput();
     document.body.appendChild(smallWindow); 
-    console.log('ui loaded');
     console.log(ui);
     
     
     
     //drag window
-    var startX = 0, startY = 0;
-    var currentX = 0, currentY = 0;
-    var isMouseDown = false;
+    let startX = 0, startY = 0;
+    let currentX = 0, currentY = 0;
+    let isMouseDown = false;
     smallWindow.addEventListener('mousedown', e =>{
         if (e.target.tagName == "TEXTAREA" || e.target.tagName == "BUTTON" || e.target.tagName == "INPUT") return;
         startX = e.pageX;
@@ -580,5 +707,39 @@
     });
     
     smallWindow.style['display'] = '';
+    
+    
+    dulunche = await globalEval('window.dulunche');
+    if (dulunche != null){
+        dulunche.eventBus.on('dlc.run', ()=>{
+            dlcIsRunning = true;
+            if (ui.elem.autoDLC.checked && ui.elem.dynamicReload.checked) {
+                sendToDlc(ui.elem.resultText.value);
+            }
+        });
+        dulunche.eventBus.on('dlc.stop', ()=>{
+            dlcIsRunning = false;
+        });
+    }
+    
+//    insertFunction('laji_passDlcObject', 'dlc', d => {
+//        console.log('randomsentencegenerator: dulunche detected');
+//        dulunche = d;
+//        dulunche.eventBus.on('dlc.run', ()=>{
+//            dlcIsRunning = true;
+//            if (ui.elem.autoDLC.checked && ui.elem.dynamicReload.checked) {
+//                sendToDlc(ui.elem.resultText.value);
+//            }
+//        });
+//        dulunche.eventBus.on('dlc.stop', ()=>{
+//            dlcIsRunning = false;
+//        });
+//    });
+//    insertScript(`
+//        if (window.dulunche != null){
+//            laji_passDlcObject(window.dulunche);
+//            window.laji_passDlcObject = undefined;
+//        }
+//    `);
     
 })();
