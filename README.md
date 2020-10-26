@@ -6,13 +6,16 @@
 
 # 安装
 
+**注意：从0.7版本开始使用了新版独轮车提供的接口，更新时请确保独轮车版本大于等于2.20**
+
 从openuserjs.org安装
 
 - [RandomSentenceGenerator](https://openuserjs.org/scripts/sqrl/RandomSentenceGenerator)
 
 或直接从github下载
 
-- [当前版本 0.6](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/randomsentencegenerator.user.js)
+- [当前版本 0.7](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/randomsentencegenerator.user.js)
+- [0.6](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/legacy/randomsentencegenerator_v0.6.user.js)
 
 # 原理
 
@@ -30,9 +33,11 @@
 - 一次生成条数、每条长度：不解释
 - 语气增强：随机插入问号和感叹号
 - 逻辑增强：随机插入逻辑连接词
-- 自动装填：生成后自动填入独轮车
+- 自动装填：生成后自动填入独轮车（如果你没有独轮车或着想用其他工具，则可以把此选项关掉，手动复制生成的文本到你的工具中）
+- 动态装填：开启此选项后会强制覆盖dulunche的danmakuGener，在弹药消耗到一半时自动生成新的弹药（适合长时间全自动挂机，如果用手动穿甲的话则没必要开）
 
-![scr1](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/2020-10-25_18-49-14_chrome.png)
+
+![scr1](https://github.com/c4d0/Dulunche_RandomSentenceGenerator/raw/main/img/2020-10-26_11-38-26_chrome.png)
 
 放一张增强全开的生成结果图
 
@@ -57,6 +62,11 @@ var id = setInterval(() => laji_GenerateAndTranslate(), 60 * 1000);
 ```
 
 # Changelog
+
+## v0.7
+- 优化ui
+- 增加了动态装填，可以全自动挂机
+- 优化了语气增强的插入位置，避免打破句子的连续性
 
 ## v0.6
 - 优化ui
